@@ -548,6 +548,31 @@ PATTERN, a string.  When PATTERN is #f, display all the system generations."
         (else
          (leave (_ "invalid syntax: ~a~%") pattern))))
 
+(define (delete-generation profile number)
+  "Delete system generation NUMBER and return #t, unless NUMBER is the current
+generation, in which case we return #f."
+  (let* ((current-number (generation-number profile))
+         (generation (generation-file-name profile number)))
+    (cond ((= number current-number)
+           (format #t (_ "skipping current generation ~a~%") generation)
+           #f)
+          (else
+           (format #t (_ "deleting ~a~%") generation)
+           (delete-file generation)
+           #t))))
+
+(define* (delete-generations store pattern #:optional (profile %system-profile))
+  "Delete all system generations matching PATTERN, a string, but never delete
+the current generation.  Regenerate grub.cfg if we have deleted something."
+  (cond ((matching-generations pattern profile)
+         =>
+         (lambda (numbers)
+           (and (fold (lambda (number deleted?)
+                        (or (delete-generation profile number) deleted?)) #f numbers)
+                (reinstall-grub store (generation-number profile))))) ; TODO: reinstall-grub will drop extra grub menu entries specified in config!
+        (else
+         (leave (_ "invalid syntax: ~a~%") pattern))))
+
 
 ;;;
 ;;; Action.
@@ -711,6 +736,8 @@ Some ACTIONS support additional ARGS.\n"))
    switch-generation switch to an existing operating system configuration\n"))
   (display (_ "\
    list-generations list the system generations\n"))
+  (display (_ "\
+   delete-generations delete system generations\n"))
   (display (_ "\
    build            build the operating system without installing anything\n"))
   (display (_ "\
@@ -880,6 +907,12 @@ argument list and OPTS is the option alist."
        (list-generations pattern)))
     ;; The following commands need to use the store, but they do not need an
     ;; operating system configuration file.
+    ((delete-generations)
+     (let ((pattern (match args
+                      ((pattern) pattern)
+                      (x (leave (_ "wrong number of arguments~%"))))))
+       (with-store store
+         (delete-generations store pattern))))
     ((switch-generation)
      (let ((pattern (match args
                       ((pattern) pattern)
@@ -906,8 +939,8 @@ argument list and OPTS is the option alist."
         (let ((action (string->symbol arg)))
           (case action
             ((build container vm vm-image disk-image reconfigure init
-              extension-graph shepherd-graph list-generations roll-back
-              switch-generation)
+              extension-graph shepherd-graph list-generations delete-generations
+              roll-back switch-generation)
              (alist-cons 'action action result))
             (else (leave (_ "~a: unknown action~%") action))))))
 
