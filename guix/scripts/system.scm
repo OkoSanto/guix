@@ -568,6 +568,7 @@ the current generation.  Regenerate grub.cfg if we have deleted something."
          =>
          (lambda (numbers)
            (and (fold (lambda (number deleted?)
+                        ; TODO: use delete-generation from (guix ui)?
                         (or (delete-generation profile number) deleted?)) #f numbers)
                 (reinstall-grub store (generation-number profile))))) ; TODO: reinstall-grub will drop extra grub menu entries specified in config!
         (else
