@@ -34,6 +34,7 @@
   #:use-module ((guix licenses) #:prefix license:)
   #:use-module (guix packages)
   #:use-module (guix download)
+  #:use-module (guix build-system cmake)
   #:use-module (guix build-system glib-or-gtk)
   #:use-module (guix build-system gnu)
   #:use-module (guix build-system python)
@@ -877,6 +878,32 @@ information by IP Address.")
   (description "IO::Socket::INET6 is an interface for AF_INET/AF_INET6 domain
 sockets in Perl.")
   (license (package-license perl))))
+
+(define-public libproxy
+  (package
+    (name "libproxy")
+    (version "0.4.14")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append "https://github.com/libproxy/libproxy/"
+                                  "releases/download/" version "/libproxy-"
+                                  version ".tar.xz"))
+              (sha256
+               (base32
+                "19if4q00ja4wm145arnzz8p0jq5nd0g6yr0p0rf50sila1l08pg2"))))
+    (build-system cmake-build-system)
+    (inputs ;; TODO complete inputs: python/pkg-config/...
+     `(("zlib" ,zlib)))
+    (arguments
+     `(#:phases
+       (modify-phases %standard-phases
+         (replace 'check
+                  (lambda _
+                    (zero? (system* "ctest" "-E" "url-test")))))))
+    (synopsis "Library providing automatic proxy configuration management")
+    (description ".")
+    (home-page "https://libproxy.github.io/libproxy")
+    (license license:lgpl2.1+)))
 
 (define-public proxychains-ng
   (package
