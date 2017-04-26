@@ -25,12 +25,20 @@
   #:use-module (guix packages)
   #:use-module (guix download)
   #:use-module (guix build-system gnu)
+  #:use-module (guix build-system glib-or-gtk)
+  #:use-module (gnu packages autotools)
   #:use-module (gnu packages curl)
+  #:use-module (gnu packages gettext)
+  #:use-module (gnu packages gtk)
   #:use-module (gnu packages libusb)
   #:use-module (gnu packages linux)
   #:use-module (gnu packages man)
+  #:use-module (gnu packages networking)
+  #:use-module (gnu packages cyrus-sasl)
+  #:use-module (gnu packages tls)
   #:use-module (gnu packages perl)
-  #:use-module (gnu packages pkg-config))
+  #:use-module (gnu packages pkg-config)
+  #:use-module (gnu packages xml))
 
 (define-public ccid
   (package
@@ -69,6 +77,46 @@ compliant with the CCID and ICCD protocols.  It supports a wide range of
 readers and is needed to communicate with such devices through the
 @command{pcscd} resource manager.")
     (license license:lgpl2.1+)))
+
+(define-public eid-mw
+  (package
+    (name "eid-mw")
+    (version "4.2.5")
+    (source (origin
+              (method url-fetch)
+              (uri (string-append
+                    "https://github.com/Fedict/eid-mw/archive/v"
+                    version ".tar.gz"))
+              (sha256
+               (base32
+                "10dwah62nbnsnsh84dhz0qcisnx6csdns2yv75gli43709jnmi6j"))))
+    (build-system glib-or-gtk-build-system)
+    (inputs
+     `(("curl" ,curl)
+       ("openssl" ,openssl)
+       ("gtk+" ,gtk+)
+       ("pcsc-lite" ,pcsc-lite)
+       ("libproxy" ,libproxy)
+       ("libxml2" ,libxml2)
+       ("cyrus-sasl" ,cyrus-sasl)))
+    (native-inputs
+     `(("autoconf" ,autoconf)
+       ("automake" ,automake)
+       ("gettext" ,gnu-gettext)
+       ("libtool" ,libtool)
+       ("pkg-config" ,pkg-config)
+       ("perl" ,perl)))
+    (arguments
+     `(#:phases
+       (modify-phases %standard-phases
+         ;; The github tarball doesn't contain a configure script.
+         (add-before 'configure 'autoreconf
+                     (lambda _ (zero? (system* "autoreconf" "-i")))))))
+    (synopsis "Belgian eID Middleware")
+    (description "The Belgian eID Middleware is required to authenticate with
+online services using the Belgian electronic identity card.")
+    (home-page "https://github.com/Fedict/eid-mw")
+    (license license:lgpl3)))
 
 (define-public libyubikey
   (package
