@@ -44,6 +44,7 @@
   #:use-module (guix git-download)
   #:use-module (guix utils)
   #:use-module (guix build utils)
+  #:use-module (guix build-system ant)
   #:use-module (guix build-system cmake)
   #:use-module (guix build-system gnu)
   #:use-module (guix build-system ocaml)
@@ -861,6 +862,58 @@ implemented in C.")
    (license (license:x11-style
              "https://support.hdfgroup.org/ftp/HDF5/hdf-java\
 /current/src/unpacked/COPYING"))))
+
+(define-public hdfview
+  (package
+    (name "hdfview")
+    (version "2.14")
+    (source
+     (origin
+       (method url-fetch)
+       (uri (string-append
+             "https://support.hdfgroup.org/ftp/HDF5/releases/HDF-JAVA/hdfview-"
+             version "/src/hdfview-" version ".tar.gz"))
+       (sha256
+        (base32
+         "0lv9djfm7hnp14mcyzbiax3xjb8vkbzhh7bdl6cvgy53pc08784p"))
+;;       (modules '((guix build utils)))
+;;       (snippet ; Make sure we don't use the bundled sources and binaries.
+;;        `(delete-file-recursively "lib")) ; TODO: package nom.tam.fits & netcdf java
+       ))
+;         "19g00wib98z01r7wv4vzjqvwbbddcj14p28djb08hn3n68bgikbg")))) ; file obtained with guix download is different from file downloaded by icecat?!
+    (build-system ant-build-system)
+    (inputs
+     `(("hdf-java" ,hdf-java)
+       ("java-slf4j-api" ,java-slf4j-api))) ;; TODO: add nom.tam.fits, ucar.nc2
+    (arguments ;; TODO patch build.xml: os.name/os.version/... => not reproducible
+     `(#:phases
+       (modify-phases %standard-phases
+         (add-before 'build 'patch-properties
+           (lambda* (#:key inputs #:allow-other-keys)
+             (substitute* "build.properties"
+               (("\\$\\{env.HDFLIBS\\}/lib")
+                (string-append (assoc-ref inputs "hdf-java") "/lib/linux
+build.sysclasspath=first") ; Ensure system classpath is used.
+                ))
+             (mkdir-p "lib")
+             #t))
+         (replace 'install
+           (lambda _
+             (zero? (system* "ant" "package")))
+         )
+       #:tests? #f
+       ))
+    (home-page "https://support.hdfgroup.org/products/java")
+    (synopsis "Graphical application to read HDF4 and HDF5 files")
+    (description "HDFView provides a graphical interface to browse the
+contents of HDF4 and HDF5 files, as well as netCDF and FITS data.  Users can
+inspect, plot, and export data from these files.")
+
+    ;; todo install and wrap with script running 'java -Djava.library.path=/gnu/store/1kcd47iwcykvjhhv1can6c2v5y1ayp6j-hdf-java-3.3.2/lib/x86_64-unknown-linux-gnu hdf.view.HDFView', with all dependencies on classpath
+
+    ;; BSD-style license:
+   (license (license:non-copyleft
+             "https://support.hdfgroup.org/ftp/HDF5/hdf-java/current/src/unpacked/COPYING"))))
 
 (define-public hdf-eos2
   (package
