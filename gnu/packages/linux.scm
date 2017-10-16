@@ -377,14 +377,14 @@ It has been modified to remove all non-free binary blobs.")
                     #:configuration-file kernel-config))
 
 (define-public linux-libre-4.9
-  (make-linux-libre "4.9.53"
-                    "174i53cd090akbjq34dj4z00h1nyfmy3sl3fk6svcmbx6h34381h"
+  (make-linux-libre "4.9.54"
+                    "14i39mbihmz08c70f2p72s4in8wlqg8xf211pxamcnrv32kkckks"
                     %intel-compatible-systems
                     #:configuration-file kernel-config))
 
 (define-public linux-libre-4.4
-  (make-linux-libre "4.4.90"
-                    "1sqzvz8yrcf99vhphkxp1wm2agq6q9nshxb1mkypspm8rhm11vhw"
+  (make-linux-libre "4.4.91"
+                    "1qcpmy65w8gsj9gkr8d24bs17lmg98q17r4qljgihs48pk0ylfd0"
                     %intel-compatible-systems
                     #:configuration-file kernel-config))
 
@@ -3071,6 +3071,16 @@ Bluetooth audio output devices like headphones or loudspeakers.")
                (string-append "--with-udevdir=" out "/lib/udev")))
        #:phases
        (modify-phases %standard-phases
+         ,@(if (string=? (%current-system) "armhf-linux")
+               ;; This test fails unpredictably.
+               ;; TODO: skip it for all architectures.
+               `((add-before 'check 'skip-wonky-test
+                  (lambda _
+                    (substitute* "unit/test-gatt.c"
+                      (("tester_init\\(&argc, &argv\\);") "return 77;"))
+                    #t)))
+               `())
+
          (add-after 'install 'post-install
            (lambda* (#:key inputs outputs #:allow-other-keys)
              (let* ((out        (assoc-ref outputs "out"))
@@ -3089,13 +3099,7 @@ Bluetooth audio output devices like headphones or loudspeakers.")
                   (string-append out "/lib/udev/hid2hci --method"))
                  (("/sbin/udevadm")
                   (string-append (assoc-ref inputs "eudev") "/bin/udevadm")))
-               #t))))
-
-       ;; FIXME: Skip a test that segfaults on some machines.  Seems to be a
-       ;; timing issue (discussion on upstream mailing list:
-       ;; https://marc.info/?t=149578476300002&r=1&w=2)
-       #:make-flags '("XFAIL_TESTS=unit/test-gatt")))
-
+               #t))))))
     (native-inputs
      `(("pkg-config" ,pkg-config)
        ("gettext" ,gettext-minimal)))
